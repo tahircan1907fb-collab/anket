@@ -21,6 +21,85 @@ function getStringValue(value: SurveyValue) {
   return typeof value === "string" ? value : "";
 }
 
+function formatPhoneInput(rawValue: string) {
+  const digits = rawValue.replace(/\D/g, "").slice(0, 12);
+
+  if (digits.length === 0) {
+    return "";
+  }
+
+  let normalized = digits;
+
+  if (normalized.startsWith("0")) {
+    normalized = `90${normalized.slice(1)}`;
+  } else if (!normalized.startsWith("90")) {
+    normalized = `90${normalized}`;
+  }
+
+  normalized = normalized.slice(0, 12);
+
+  const country = normalized.slice(0, 2);
+  const parts = [
+    normalized.slice(2, 5),
+    normalized.slice(5, 8),
+    normalized.slice(8, 10),
+    normalized.slice(10, 12)
+  ].filter(Boolean);
+
+  return `+${country}${parts.length > 0 ? ` ${parts.join(" ")}` : ""}`;
+}
+
+function getFieldChip(question: SurveyQuestion) {
+  switch (question.type) {
+    case "email":
+      return "E-posta";
+    case "tel":
+      return "Telefon";
+    case "textarea":
+      return "Aciklama";
+    case "select":
+      return "Secim";
+    default:
+      return "Bilgi";
+  }
+}
+
+function getFieldHint(question: SurveyQuestion) {
+  if (question.type === "tel") {
+    return "Format: +90 5xx xxx xx xx";
+  }
+
+  if (question.type === "email") {
+    return "Kurumsal e-posta kullanmaniz oneriilir.";
+  }
+
+  if (question.type === "textarea") {
+    return "Kritik beklentileri, mevcut sistemi veya saha notlarini yazabilirsiniz.";
+  }
+
+  return question.placeholder ?? "";
+}
+
+function getAutoComplete(question: SurveyQuestion) {
+  if (question.id === "companyName") {
+    return "organization";
+  }
+
+  if (question.id === "contactName") {
+    return "name";
+  }
+
+  if (question.id === "contactEmail") {
+    return "email";
+  }
+
+  if (question.id === "contactPhone") {
+    return "tel";
+  }
+
+  return "off";
+}
+
 function renderQuestionField(args: {
   question: SurveyQuestion;
   value: SurveyValue;
@@ -28,53 +107,79 @@ function renderQuestionField(args: {
   onChange: (questionId: string, value: SurveyValue) => void;
 }) {
   const { question, value, error, onChange } = args;
+  const inputValue = getStringValue(value);
 
   if (question.type === "text" || question.type === "email" || question.type === "tel") {
+    const normalizedValue = question.type === "tel" ? formatPhoneInput(inputValue) : inputValue;
+
     return (
-      <>
-        <input
-          className="field-input"
-          type={question.type}
-          placeholder={question.placeholder}
-          value={getStringValue(value)}
-          onChange={(event) => onChange(question.id, event.target.value)}
-        />
+      <div className="field-stack">
+        <div className={joinClasses("field-frame", error && "has-error")}>
+          <span className="field-chip">{getFieldChip(question)}</span>
+          <input
+            aria-invalid={Boolean(error)}
+            autoComplete={getAutoComplete(question)}
+            className="field-input field-input--framed"
+            id={question.id}
+            inputMode={question.type === "tel" ? "tel" : question.type === "email" ? "email" : "text"}
+            placeholder={question.placeholder}
+            type={question.type === "tel" ? "text" : question.type}
+            value={normalizedValue}
+            onChange={(event) =>
+              onChange(question.id, question.type === "tel" ? formatPhoneInput(event.target.value) : event.target.value)
+            }
+          />
+        </div>
+        <div className="field-note">{getFieldHint(question)}</div>
         {error ? <div className="error-text">{error}</div> : null}
-      </>
+      </div>
     );
   }
 
   if (question.type === "textarea") {
     return (
-      <>
-        <textarea
-          className="field-textarea"
-          placeholder={question.placeholder}
-          value={getStringValue(value)}
-          onChange={(event) => onChange(question.id, event.target.value)}
-        />
+      <div className="field-stack">
+        <div className={joinClasses("field-frame field-frame--textarea", error && "has-error")}>
+          <span className="field-chip">{getFieldChip(question)}</span>
+          <textarea
+            aria-invalid={Boolean(error)}
+            autoComplete={getAutoComplete(question)}
+            className="field-textarea field-textarea--framed"
+            id={question.id}
+            placeholder={question.placeholder}
+            value={inputValue}
+            onChange={(event) => onChange(question.id, event.target.value)}
+          />
+        </div>
+        <div className="field-note">{getFieldHint(question)}</div>
         {error ? <div className="error-text">{error}</div> : null}
-      </>
+      </div>
     );
   }
 
   if (question.type === "select") {
     return (
-      <>
-        <select
-          className="field-select"
-          value={getStringValue(value)}
-          onChange={(event) => onChange(question.id, event.target.value)}
-        >
-          <option value="">Secim yapin</option>
-          {question.options?.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+      <div className="field-stack">
+        <div className={joinClasses("field-frame", error && "has-error")}>
+          <span className="field-chip">{getFieldChip(question)}</span>
+          <select
+            aria-invalid={Boolean(error)}
+            className="field-select field-select--framed"
+            id={question.id}
+            value={inputValue}
+            onChange={(event) => onChange(question.id, event.target.value)}
+          >
+            <option value="">Secim yapin</option>
+            {question.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field-note">Acilir listeden size en yakin secenegi secin.</div>
         {error ? <div className="error-text">{error}</div> : null}
-      </>
+      </div>
     );
   }
 
@@ -86,11 +191,7 @@ function renderQuestionField(args: {
             const checked = value === option.value;
             return (
               <label className={joinClasses("choice-card", checked && "is-selected")} key={option.value}>
-                <input
-                  type="radio"
-                  checked={checked}
-                  onChange={() => onChange(question.id, option.value)}
-                />
+                <input id={`${question.id}-${option.value}`} type="radio" checked={checked} onChange={() => onChange(question.id, option.value)} />
                 <span className="choice-copy">
                   <strong>{option.label}</strong>
                   {option.hint ? <span>{option.hint}</span> : null}
@@ -115,6 +216,7 @@ function renderQuestionField(args: {
             return (
               <label className={joinClasses("choice-card", checked && "is-selected")} key={option.value}>
                 <input
+                  id={`${question.id}-${option.value}`}
                   type="checkbox"
                   checked={checked}
                   onChange={() => {
@@ -212,7 +314,14 @@ export function SurveyExperience() {
   const validateCurrentStep = () => {
     const stepErrors = getValidationErrors(currentSection.id, answers);
     setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0;
+
+    if (Object.keys(stepErrors).length > 0) {
+      setStatusMessage("Lütfen kırmızı ile işaretlenmiş zorunlu alanları kontrol edin.");
+      return false;
+    }
+
+    setStatusMessage(null);
+    return true;
   };
 
   const goNext = () => {
@@ -233,6 +342,7 @@ export function SurveyExperience() {
   const goBack = () => {
     startTransition(() => {
       setCurrentStep((step) => Math.max(step - 1, 0));
+      setStatusMessage(null);
     });
   };
 
@@ -266,10 +376,13 @@ export function SurveyExperience() {
           body: JSON.stringify(payload)
         });
 
-        const result = (await response.json()) as { error?: string };
+        const result = (await response.json()) as { error?: string; fieldErrors?: Record<string, string> };
 
         if (!response.ok) {
-          setStatusMessage(result.error ?? "Basvuru gonderilirken bir hata olustu.");
+          if (result.fieldErrors) {
+            setErrors(result.fieldErrors);
+          }
+          setStatusMessage(result.error ?? "Bașvuru gönderilirken bir hata oluștu.");
           return;
         }
 
