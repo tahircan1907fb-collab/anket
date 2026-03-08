@@ -297,7 +297,7 @@ export function SurveyExperience() {
   return (
     <section className="survey-section" id="anket">
       <div className="container survey-grid">
-        <form className="panel" onSubmit={handleSubmit}>
+        <form className="panel" onSubmit={handleSubmit} noValidate>
           <div className="panel-header">
             <div>
               <div className="panel-kicker">
@@ -337,7 +337,7 @@ export function SurveyExperience() {
             })}
           </div>
 
-          <div className="question-list">
+          <div className="question-list" key={currentStep}>
             {currentQuestions.length === 0 ? (
               <div className="question-card">
                 <strong>Bu bolum sizin secimlerinize gore otomatik gecti.</strong>
