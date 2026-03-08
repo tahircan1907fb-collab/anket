@@ -52,7 +52,7 @@ export const surveyQuestions: SurveyQuestion[] = [
     id: "industry",
     sectionId: "profile",
     label: "Faaliyet alani",
-    type: "select",
+    type: "radio",
     required: true,
     options: [
       { value: "uretim", label: "Uretim ve dagitim" },
@@ -117,7 +117,8 @@ export const surveyQuestions: SurveyQuestion[] = [
       { value: "sevkiyat", label: "Sevkiyat ve cikis fisleri" },
       { value: "sayim", label: "Sayim ve envanter farklari" },
       { value: "raporlama", label: "Raporlama ve kritik stok" },
-      { value: "yetki", label: "Rol ve yetki yonetimi" }
+      { value: "yetki", label: "Rol ve yetki yonetimi" },
+      { value: "diger", label: "Eklemek istediginiz var mi?" }
     ]
   },
   {
@@ -132,7 +133,8 @@ export const surveyQuestions: SurveyQuestion[] = [
       { value: "hata", label: "Giris-cikis hatalari yuksek" },
       { value: "sayim", label: "Sayim farklarini yonetmek zor" },
       { value: "yetki", label: "Kim ne yaptiyi takip etmek istiyoruz" },
-      { value: "entegrasyon", label: "ERP veya muhasebe ile veri kopuk" }
+      { value: "entegrasyon", label: "ERP veya muhasebe ile veri kopuk" },
+      { value: "diger", label: "Eklemek istediginiz var mi?" }
     ]
   },
   {
@@ -146,7 +148,8 @@ export const surveyQuestions: SurveyQuestion[] = [
       { value: "miktar", label: "Sadece miktar takibi" },
       { value: "lot", label: "Parti veya lot takibi" },
       { value: "seri", label: "Seri numarasi takibi" },
-      { value: "skt", label: "Son kullanma tarihi takibi" }
+      { value: "skt", label: "Son kullanma tarihi takibi" },
+      { value: "diger", label: "Eklemek istediginiz var mi?" }
     ]
   },
   {
@@ -161,7 +164,8 @@ export const surveyQuestions: SurveyQuestion[] = [
     options: [
       { value: "depo", label: "Depo bazinda yeterli" },
       { value: "raf", label: "Raf ve goz bazli izleme gerekli" },
-      { value: "palet", label: "Palet ve hucre bazli detay istiyoruz" }
+      { value: "palet", label: "Palet ve hucre bazli detay istiyoruz" },
+      { value: "diger", label: "Diger" }
     ]
   },
   {
@@ -191,7 +195,8 @@ export const surveyQuestions: SurveyQuestion[] = [
     options: [
       { value: "ad-hoc", label: "Ihtiyac oldugunda" },
       { value: "monthly", label: "Aylik periyodik sayim" },
-      { value: "cycle", label: "Surekli cycle count yapisi" }
+      { value: "cycle", label: "Surekli cycle count yapisi" },
+      { value: "diger", label: "Diger" }
     ]
   },
   {
@@ -221,7 +226,8 @@ export const surveyQuestions: SurveyQuestion[] = [
     options: [
       { value: "evet", label: "Evet, kritik islemler onaya dusmeli" },
       { value: "log", label: "Onaydan cok audit log yeterli" },
-      { value: "hayir", label: "Hayir, hizli operasyon daha onemli" }
+      { value: "hayir", label: "Hayir, hizli operasyon daha onemli" },
+      { value: "diger", label: "Diger" }
     ]
   },
   {
@@ -236,7 +242,8 @@ export const surveyQuestions: SurveyQuestion[] = [
       { value: "barcode_reader", label: "Barkod okuyucu" },
       { value: "label_printer", label: "Etiket veya fis yazicisi" },
       { value: "erp", label: "ERP entegrasyonu" },
-      { value: "accounting", label: "Muhasebe entegrasyonu" }
+      { value: "accounting", label: "Muhasebe entegrasyonu" },
+      { value: "diger", label: "Eklemek istediginiz var mi?" }
     ]
   },
   {
@@ -250,7 +257,8 @@ export const surveyQuestions: SurveyQuestion[] = [
     options: [
       { value: "handheld", label: "El terminali veya okutucu" },
       { value: "label", label: "Etiket basim akisi" },
-      { value: "mobile", label: "Mobil cihaz kamerasiyla okutma" }
+      { value: "mobile", label: "Mobil cihaz kamerasiyla okutma" },
+      { value: "diger", label: "Eklemek istediginiz var mi?" }
     ]
   },
   {
@@ -264,7 +272,8 @@ export const surveyQuestions: SurveyQuestion[] = [
     options: [
       { value: "label", label: "Sadece etiket ve raf etiketi" },
       { value: "form", label: "Fis ve sevk evraki" },
-      { value: "both", label: "Her ikisi de gerekli" }
+      { value: "both", label: "Her ikisi de gerekli" },
+      { value: "diger", label: "Diger" }
     ]
   },
   {
@@ -286,7 +295,8 @@ export const surveyQuestions: SurveyQuestion[] = [
     options: [
       { value: "speed", label: "Hizli devreye alma" },
       { value: "control", label: "Operasyonel kontrol ve izlenebilirlik" },
-      { value: "growth", label: "Buyumeye hazir altyapi" }
+      { value: "growth", label: "Buyumeye hazir altyapi" },
+      { value: "diger", label: "Diger" }
     ]
   },
   {
@@ -335,3 +345,8 @@ export const surveyQuestions: SurveyQuestion[] = [
     placeholder: "+90 5xx xxx xx xx"
   }
 ];
+
+
+
+
+

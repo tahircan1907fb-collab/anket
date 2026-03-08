@@ -69,3 +69,17 @@ export type SurveySubmissionRecord = {
   summary_tags: string[];
   answers: SurveyAnswers;
 };
+
+export type AdminSubmissionAnswerItem = {
+  questionId: string;
+  label: string;
+  value: string;
+  otherNote?: string;
+};
+
+export type AdminSubmissionAnswerSection = {
+  id: string;
+  title: string;
+  description: string;
+  items: AdminSubmissionAnswerItem[];
+};

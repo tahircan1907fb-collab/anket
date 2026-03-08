@@ -1,5 +1,6 @@
 import { surveyQuestions, surveySections } from "@/lib/survey/config";
 import type {
+  AdminSubmissionAnswerSection,
   SubmissionStatus,
   SurveyAnswers,
   SurveyQuestion,
@@ -16,16 +17,62 @@ const statusLabels: Record<SubmissionStatus, string> = {
   closed: "Kapandi"
 };
 
+const statusToneMap: Record<SubmissionStatus, string> = {
+  new: "fresh",
+  contacted: "warm",
+  qualified: "success",
+  closed: "muted"
+};
+
+const INLINE_OTHER_SUFFIX = "__other";
+
 export function getStatusLabel(status: SubmissionStatus) {
   return statusLabels[status];
+}
+
+export function getStatusTone(status: SubmissionStatus) {
+  return statusToneMap[status];
 }
 
 export function getSurveySections(): SurveySection[] {
   return surveySections;
 }
 
+export function getInlineOtherFieldId(questionId: string) {
+  return `${questionId}${INLINE_OTHER_SUFFIX}`;
+}
+
+export function isInlineOtherFieldId(questionId: string) {
+  return questionId.endsWith(INLINE_OTHER_SUFFIX);
+}
+
+function normalizeQuestionId(questionId: string) {
+  return isInlineOtherFieldId(questionId)
+    ? questionId.slice(0, -INLINE_OTHER_SUFFIX.length)
+    : questionId;
+}
+
 export function getQuestionById(questionId: string) {
-  return surveyQuestions.find((question) => question.id === questionId);
+  const normalizedId = normalizeQuestionId(questionId);
+  return surveyQuestions.find((question) => question.id === normalizedId);
+}
+
+export function getQuestionLabel(questionId: string) {
+  const question = getQuestionById(questionId);
+
+  if (!question) {
+    return questionId;
+  }
+
+  if (isInlineOtherFieldId(questionId)) {
+    return `${question.label} - Diger`;
+  }
+
+  return question.label;
+}
+
+export function questionHasInlineOther(question: SurveyQuestion) {
+  return Boolean(question.options?.some((option) => option.value === "diger"));
 }
 
 function normalizeArrayValue(value: SurveyValue) {
@@ -88,6 +135,31 @@ function hasValue(value: SurveyValue) {
   return value !== undefined;
 }
 
+export function isInlineOtherSelected(question: SurveyQuestion, answers: SurveyAnswers) {
+  const value = answers[question.id];
+
+  if (Array.isArray(value)) {
+    return value.includes("diger");
+  }
+
+  return value === "diger";
+}
+
+export function getInlineOtherError(question: SurveyQuestion, answers: SurveyAnswers) {
+  if (!questionHasInlineOther(question) || !isInlineOtherSelected(question, answers)) {
+    return null;
+  }
+
+  const otherValue = answers[getInlineOtherFieldId(question.id)];
+  const hasOtherValue = typeof otherValue === "string" && otherValue.trim().length > 0;
+
+  if (!hasOtherValue) {
+    return "Diger secenegi icin aciklama yazin.";
+  }
+
+  return null;
+}
+
 export function getValidationErrors(sectionId: string, answers: SurveyAnswers) {
   const questions = getSectionQuestions(sectionId, answers);
   const errors: Record<string, string> = {};
@@ -97,6 +169,12 @@ export function getValidationErrors(sectionId: string, answers: SurveyAnswers) {
 
     if (question.required && !hasValue(value)) {
       errors[question.id] = "Bu alan zorunludur.";
+      continue;
+    }
+
+    const inlineOtherError = getInlineOtherError(question, answers);
+    if (inlineOtherError) {
+      errors[question.id] = inlineOtherError;
       continue;
     }
 
@@ -125,19 +203,23 @@ export function sanitizeAnswers(answers: SurveyAnswers) {
       if (value.length > 0) {
         sanitized[question.id] = value;
       }
-      continue;
-    }
-
-    if (typeof value === "string") {
+    } else if (typeof value === "string") {
       const trimmed = value.trim();
       if (trimmed.length > 0) {
         sanitized[question.id] = trimmed;
       }
-      continue;
+    } else if (value !== undefined) {
+      sanitized[question.id] = value;
     }
 
-    if (value !== undefined) {
-      sanitized[question.id] = value;
+    if (questionHasInlineOther(question) && isInlineOtherSelected(question, answers)) {
+      const inlineOtherValue = answers[getInlineOtherFieldId(question.id)];
+      if (typeof inlineOtherValue === "string") {
+        const trimmedOther = inlineOtherValue.trim();
+        if (trimmedOther.length > 0) {
+          sanitized[getInlineOtherFieldId(question.id)] = trimmedOther;
+        }
+      }
     }
   }
 
@@ -229,7 +311,7 @@ export function deriveSurveySummary(answers: SurveyAnswers): SurveySummary {
 
 export function getAnswerLabel(questionId: string, rawValue: SurveyValue) {
   const question = getQuestionById(questionId);
-  if (!question) {
+  if (!question || isInlineOtherFieldId(questionId)) {
     return Array.isArray(rawValue) ? rawValue.join(", ") : String(rawValue ?? "-");
   }
 
@@ -266,7 +348,59 @@ export function getSubmissionPreview(answers: SurveyAnswers) {
 }
 
 export function getAllVisibleQuestionIds(answers: SurveyAnswers) {
-  return surveyQuestions.filter((question) => isQuestionVisible(question, answers)).map((question) => question.id);
+  const visibleQuestionIds = surveyQuestions
+    .filter((question) => isQuestionVisible(question, answers))
+    .map((question) => question.id);
+
+  for (const question of surveyQuestions) {
+    if (isQuestionVisible(question, answers) && questionHasInlineOther(question)) {
+      visibleQuestionIds.push(getInlineOtherFieldId(question.id));
+    }
+  }
+
+  return visibleQuestionIds;
+}
+
+export function getSubmissionAnswerSections(answers: SurveyAnswers): AdminSubmissionAnswerSection[] {
+  const sections: AdminSubmissionAnswerSection[] = [];
+
+  for (const section of surveySections) {
+    const items = surveyQuestions
+      .filter((question) => question.sectionId === section.id)
+      .flatMap((question) => {
+        const value = answers[question.id];
+
+        if (!hasValue(value)) {
+          return [];
+        }
+
+        const otherFieldId = getInlineOtherFieldId(question.id);
+        const otherValue = answers[otherFieldId];
+        const otherNote = typeof otherValue === "string" && otherValue.trim().length > 0 ? otherValue.trim() : undefined;
+
+        return [
+          {
+            questionId: question.id,
+            label: question.label,
+            value: getAnswerLabel(question.id, value),
+            otherNote
+          }
+        ];
+      });
+
+    if (items.length === 0) {
+      continue;
+    }
+
+    sections.push({
+      id: section.id,
+      title: section.title,
+      description: section.description,
+      items
+    });
+  }
+
+  return sections;
 }
 
 export function getSurveyQuestions() {
@@ -276,3 +410,5 @@ export function getSurveyQuestions() {
 export function getStatusOptions() {
   return Object.keys(statusLabels) as SubmissionStatus[];
 }
+
+

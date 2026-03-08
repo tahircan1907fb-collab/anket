@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getAllVisibleQuestionIds, getQuestionById, sanitizeAnswers } from "@/lib/survey/logic";
+import { getAllVisibleQuestionIds, getInlineOtherError, getQuestionById, isInlineOtherFieldId, sanitizeAnswers } from "@/lib/survey/logic";
 import type { SurveyAnswers } from "@/lib/survey/types";
 
 export const surveySubmissionSchema = z.object({
@@ -21,6 +21,10 @@ export function validateSubmissionAnswers(rawAnswers: SurveyAnswers) {
   const fieldErrors: Record<string, string> = {};
 
   for (const questionId of visibleIds) {
+    if (isInlineOtherFieldId(questionId)) {
+      continue;
+    }
+
     const question = getQuestionById(questionId);
     const value = answers[questionId];
 
@@ -38,6 +42,12 @@ export function validateSubmissionAnswers(rawAnswers: SurveyAnswers) {
       continue;
     }
 
+    const inlineOtherError = getInlineOtherError(question, answers);
+    if (inlineOtherError) {
+      fieldErrors[question.id] = inlineOtherError;
+      continue;
+    }
+
     if (question.type === "email" && typeof value === "string") {
       const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
       if (!isValidEmail) {
@@ -51,3 +61,4 @@ export function validateSubmissionAnswers(rawAnswers: SurveyAnswers) {
     fieldErrors
   };
 }
+

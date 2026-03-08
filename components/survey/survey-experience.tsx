@@ -1,14 +1,15 @@
 "use client";
 
-import { useDeferredValue, useEffect, useState, useTransition, type FormEvent } from "react";
+import { useDeferredValue, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { trackEvent } from "@/lib/analytics";
-import { getSurveySections } from "@/lib/survey/logic";
 import {
   deriveSurveySummary,
+  getInlineOtherFieldId,
   getSectionCompletion,
   getSectionQuestions,
+  getSurveySections,
   getValidationErrors,
   sanitizeAnswers
 } from "@/lib/survey/logic";
@@ -100,13 +101,34 @@ function getAutoComplete(question: SurveyQuestion) {
   return "off";
 }
 
+function questionNeedsCommaHelp(questionId: string) {
+  return ["modules", "painPoints", "trackingNeeds"].includes(questionId);
+}
+
+function getOtherFieldHint(question: SurveyQuestion) {
+  if (questionNeedsCommaHelp(question.id)) {
+    return "Birden fazla madde ekleyecekseniz aralarina ',' koyun.";
+  }
+
+  return "Buraya kisaca ek detay yazabilirsiniz.";
+}
+
+function isOtherSelected(question: SurveyQuestion, value: SurveyValue) {
+  if (Array.isArray(value)) {
+    return value.includes("diger");
+  }
+
+  return value === "diger";
+}
+
 function renderQuestionField(args: {
   question: SurveyQuestion;
   value: SurveyValue;
+  answers: SurveyAnswers;
   error?: string;
   onChange: (questionId: string, value: SurveyValue) => void;
 }) {
-  const { question, value, error, onChange } = args;
+  const { question, value, answers, error, onChange } = args;
   const inputValue = getStringValue(value);
 
   if (question.type === "text" || question.type === "email" || question.type === "tel") {
@@ -184,19 +206,37 @@ function renderQuestionField(args: {
   }
 
   if (question.type === "radio") {
+    const otherFieldId = getInlineOtherFieldId(question.id);
+
     return (
       <>
         <div className="choice-grid">
           {question.options?.map((option) => {
             const checked = value === option.value;
+            const isOtherOption = option.value === "diger";
+            const optionId = `${question.id}-${option.value}`;
+
             return (
-              <label className={joinClasses("choice-card", checked && "is-selected")} key={option.value}>
-                <input id={`${question.id}-${option.value}`} type="radio" checked={checked} onChange={() => onChange(question.id, option.value)} />
-                <span className="choice-copy">
+              <div className={joinClasses("choice-card", checked && "is-selected", isOtherOption && checked && "choice-card--stacked")} key={option.value}>
+                <input id={optionId} type="radio" checked={checked} onChange={() => onChange(question.id, option.value)} />
+                <label className="choice-copy" htmlFor={optionId}>
                   <strong>{option.label}</strong>
                   {option.hint ? <span>{option.hint}</span> : null}
-                </span>
-              </label>
+                </label>
+                {isOtherOption && checked ? (
+                  <div className="choice-other">
+                    <input
+                      className="field-input field-input--inline-other"
+                      id={otherFieldId}
+                      placeholder="Diger secenegi icin aciklama yazin"
+                      type="text"
+                      value={getStringValue(answers[otherFieldId])}
+                      onChange={(event) => onChange(otherFieldId, event.target.value)}
+                    />
+                    <span className="field-note">{getOtherFieldHint(question)}</span>
+                  </div>
+                ) : null}
+              </div>
             );
           })}
         </div>
@@ -207,12 +247,15 @@ function renderQuestionField(args: {
 
   if (question.type === "multi-select") {
     const selectedValues = Array.isArray(value) ? value.map(String) : [];
+    const otherFieldId = getInlineOtherFieldId(question.id);
+    const showOtherField = selectedValues.includes("diger");
 
     return (
       <>
         <div className="choice-grid">
           {question.options?.map((option) => {
             const checked = selectedValues.includes(option.value);
+
             return (
               <label className={joinClasses("choice-card", checked && "is-selected")} key={option.value}>
                 <input
@@ -234,6 +277,19 @@ function renderQuestionField(args: {
             );
           })}
         </div>
+        {showOtherField ? (
+          <div className="choice-other-panel">
+            <input
+              className="field-input field-input--inline-other"
+              id={otherFieldId}
+              placeholder={questionNeedsCommaHelp(question.id) ? "Ornek: kalite kontrol, iade sureci" : "Eklemek istediginiz detayi yazin"}
+              type="text"
+              value={getStringValue(answers[otherFieldId])}
+              onChange={(event) => onChange(otherFieldId, event.target.value)}
+            />
+            <div className="field-note">{getOtherFieldHint(question)}</div>
+          </div>
+        ) : null}
         {error ? <div className="error-text">{error}</div> : null}
       </>
     );
@@ -252,6 +308,8 @@ export function SurveyExperience() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const questionListRef = useRef<HTMLDivElement | null>(null);
+  const hasStepMountedRef = useRef(false);
 
   const currentSection = sections[currentStep];
   const currentQuestions = getSectionQuestions(currentSection.id, answers);
@@ -298,6 +356,27 @@ export function SurveyExperience() {
     );
   }, [answers, currentStep, hydrated, startedAt]);
 
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    if (!hasStepMountedRef.current) {
+      hasStepMountedRef.current = true;
+      return;
+    }
+
+    const questionTop = questionListRef.current?.getBoundingClientRect().top;
+    if (questionTop === undefined) {
+      return;
+    }
+
+    window.scrollTo({
+      top: Math.max(window.scrollY + questionTop - 24, 0),
+      behavior: "smooth"
+    });
+  }, [currentStep, hydrated]);
   const updateAnswer = (questionId: string, value: SurveyValue) => {
     setAnswers((currentAnswers) => ({
       ...currentAnswers,
@@ -450,7 +529,7 @@ export function SurveyExperience() {
             })}
           </div>
 
-          <div className="question-list" key={currentStep}>
+          <div className="question-list" key={currentStep} ref={questionListRef}>
             {currentQuestions.length === 0 ? (
               <div className="question-card">
                 <strong>Bu bolum sizin secimlerinize gore otomatik gecti.</strong>
@@ -466,6 +545,7 @@ export function SurveyExperience() {
                 {renderQuestionField({
                   question,
                   value: answers[question.id],
+                  answers,
                   error: errors[question.id],
                   onChange: updateAnswer
                 })}
@@ -542,3 +622,12 @@ export function SurveyExperience() {
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
