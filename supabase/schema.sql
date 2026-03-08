@@ -36,6 +36,12 @@ create table if not exists public.survey_submissions (
   answers jsonb not null
 );
 
+grant usage on schema public to anon, authenticated;
+grant select on public.survey_sections to anon, authenticated;
+grant select on public.survey_questions to anon, authenticated;
+grant select, insert on public.survey_submissions to anon, authenticated;
+grant update on public.survey_submissions to authenticated;
+
 alter table public.survey_sections enable row level security;
 alter table public.survey_questions enable row level security;
 alter table public.survey_submissions enable row level security;
@@ -44,12 +50,14 @@ drop policy if exists "questions are readable" on public.survey_questions;
 create policy "questions are readable"
   on public.survey_questions
   for select
+  to anon, authenticated
   using (true);
 
 drop policy if exists "sections are readable" on public.survey_sections;
 create policy "sections are readable"
   on public.survey_sections
   for select
+  to anon, authenticated
   using (true);
 
 drop policy if exists "submissions can be inserted by anyone" on public.survey_submissions;
