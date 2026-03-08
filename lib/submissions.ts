@@ -163,9 +163,11 @@ export async function createSubmission(input: {
     return record;
   }
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from(SURVEY_TABLE)
     .insert({
+      id: record.id,
+      created_at: record.created_at,
       company_name: record.company_name,
       contact_name: record.contact_name,
       contact_email: record.contact_email,
@@ -178,15 +180,13 @@ export async function createSubmission(input: {
       summary_tags: record.summary_tags,
       answers: record.answers,
       status: record.status
-    })
-    .select("*")
-    .single();
+    });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return normalizeSubmissionRow(data as Record<string, unknown>);
+  return record;
 }
 
 export async function updateSubmissionStatus(id: string, status: SubmissionStatus) {
@@ -229,3 +229,4 @@ export async function getCurrentAdminUser() {
 
   return user;
 }
+
